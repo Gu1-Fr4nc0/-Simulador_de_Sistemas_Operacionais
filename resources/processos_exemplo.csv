@@ -1,0 +1,7 @@
+pid,nome,arrival_time,burst_time,priority,memory_mb
+1,P1,0,8,3,64
+2,P2,1,4,1,32
+3,P3,2,9,2,128
+4,P4,3,5,1,48
+5,P5,4,2,4,16
+6,P6,5,6,2,80
