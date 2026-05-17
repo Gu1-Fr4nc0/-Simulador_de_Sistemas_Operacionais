@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "scheduler.h"
+#include "../include/scheduler.h"
 
 /* ------------------------------------------------------------------ */
 /* Utilitários internos                                                 */
@@ -31,6 +31,7 @@ void compute_metrics(Process procs[], int n, SchedulerResult *r) {
     r->avg_response_time   = total_resp / n;
     r->avg_turnaround_time = total_turn / n;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Round-Robin                                                          */
@@ -172,6 +173,12 @@ void sched_priority_preemptive(Process procs[], int n, SchedulerResult *r) {
     Process ps[MAX_PROCESSES];
     memcpy(ps, procs, n * sizeof(Process));
 
+    // ADICIONE ISSO:
+    for (int i = 0; i < n; i++)
+        printf("[SCHED_INIT] pid=%d burst=%d remaining=%d priority=%d\n",
+               ps[i].pid, ps[i].burst_time,
+               ps[i].remaining_time, ps[i].priority);
+
     int time = 0, completed = 0;
     int prev_pid = -1, slice_start = 0;
 
@@ -208,6 +215,8 @@ void sched_priority_preemptive(Process procs[], int n, SchedulerResult *r) {
 
         p->remaining_time--;
         time++;
+        printf("[SCHED] t=%d pid=%d remaining=%d start_time=%d\n",
+            time, p->pid, p->remaining_time, p->start_time);
 
         if (p->remaining_time == 0) {
             p->state       = STATE_TERMINATED;

@@ -1,6 +1,8 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#include "process.h"
+
 #define PAGE_SIZE_KB   4      /* Tamanho de página em KB */
 #define MAX_FRAMES     1024
 #define MAX_PAGES      2048
@@ -21,12 +23,14 @@ typedef struct {
 
 typedef struct {
     int pid;
-    PageTableEntry pages[MAX_PAGES];
+    PageTableEntry *pages;
     int page_count;
+    int max_pages;
+    int victim_hint;
 } PageTable;
 
 typedef struct {
-    int frames[MAX_FRAMES];   /* pid do processo ocupando o frame, -1 = livre */
+    int *frames;   /* pid do processo ocupando o frame, -1 = livre */
     int frame_count;          /* total de frames físicos disponíveis */
     int used_frames;
 } PhysicalMemory;

@@ -25,18 +25,19 @@
 #include <QColor>
 #include <vector>
 #include <map>
+#include <QStatusBar>
 
 extern "C" {
-#include "process.h"
-#include "scheduler.h"
-#include "memory.h"
+#include "../include/process.h"
+#include "../include/scheduler.h"
+#include "../include/memory.h"
 }
 
 /* ------------------------------------------------------------------ */
 /* Widget de desenho da Linha do Tempo                                  */
 /* ------------------------------------------------------------------ */
 class TimelineWidget : public QWidget {
-    Q_OBJECT
+    Q_OBJECT;
 public:
     TimelineWidget(QWidget *parent = nullptr) : QWidget(parent) {
         setMinimumHeight(120);
@@ -101,9 +102,8 @@ protected:
         for (int i = 0; i <= total_time; i++) {
             int x = MARGIN + (int)((double)i / total_time * W);
             p.drawLine(x, TOP + ROW_H, x, TOP + ROW_H + 8);
-            if (i % 5 == 0)
-                p.drawText(x - 10, TOP + ROW_H + 10, 20, 15,
-                           Qt::AlignCenter, QString::number(i));
+            p.drawText(x - 10, TOP + ROW_H + 10, 20, 15,
+                       Qt::AlignCenter, QString::number(i));
         }
     }
 
@@ -116,7 +116,7 @@ private:
 /* Janela Principal                                                      */
 /* ------------------------------------------------------------------ */
 class MainWindow : public QMainWindow {
-    Q_OBJECT
+    Q_OBJECT;
 public:
     MainWindow(QWidget *parent = nullptr) : QMainWindow(parent) {
         setWindowTitle("Simulador de Sistemas Operacionais - UTFPR");
@@ -176,7 +176,11 @@ private slots:
             memResult.total_page_faults += faults;
             memResult.total_accesses    += (procs[i].memory_needed * 1024) / PAGE_SIZE_KB;
             memory_free_process(&physMem, &pt, procs[i].pid);
+            // for (int i = 0; i < nProcs; i++){
+            //     memory_free_process(&physMem, &pt, procs[i].pid);
+            // }
         }
+
 
         /* Atualiza UI */
         timeline->setData(&schedResult, nProcs);
@@ -289,7 +293,7 @@ private:
         QVBoxLayout *tbLayout = new QVBoxLayout(grpTable);
         table = new QTableWidget(0, 8);
         table->setHorizontalHeaderLabels({
-            "PID","Nome","Chegada","Burst","Prior.","Mem(MB)",
+            "PID","Nome","Chegada","tempo_cpu","Prior.","Mem(MB)",
             "Espera","Resposta"
         });
         table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
@@ -339,6 +343,6 @@ extern "C" int gui_run(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setStyle("Fusion");
     MainWindow w;
-    w.show();
+w.show();   
     return app.exec();
 }

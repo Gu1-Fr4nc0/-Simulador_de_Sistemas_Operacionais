@@ -6,13 +6,13 @@
  */
 
 #include <stdio.h>
-#include "mainwindow.h"
+#include "../include/mainwindow.h"
 
 /* --- Modo CLI para testes rápidos sem Qt (opcional) --------------- */
 #ifdef CLI_MODE
-#include "process.h"
-#include "scheduler.h"
-#include "memory.h"
+#include "../include/process.h"
+#include "../include/scheduler.h"
+#include "../include/memory.h"
 #include <string.h>
 
 int main(int argc, char *argv[]) {
@@ -43,11 +43,11 @@ int main(int argc, char *argv[]) {
     printf("Resposta Média: %.2f\n", result.avg_response_time);
     printf("Turnaround M. : %.2f\n", result.avg_turnaround_time);
 
-    PhysicalMemory mem;
+    PhysicalMemory mem = {0};
     MemoryResult   mres = {0, 0};
     memory_init(&mem, 256, 1024);
 
-    PageTable pt;
+    PageTable pt = {0};
     for (int i = 0; i < n; i++) {
         memset(&pt, 0, sizeof(pt));
         int f = memory_load_process(&mem, &pt, procs[i].pid,

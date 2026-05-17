@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "process.h"
+#include "../include/process.h"
 
 /* Formato CSV esperado (sem cabeçalho ou com cabeçalho ignorado):
  * pid,nome,arrival_time,burst_time,priority,memory_mb
@@ -40,6 +40,9 @@ int load_processes_from_csv(const char *filepath, Process procs[], int max) {
                             &p->burst_time,
                             &p->priority,
                             &p->memory_needed);
+        printf("[DEBUG] PID=%d nome=%s arrival=%d burst=%d priority=%d mem=%d\n",
+           p->pid, p->name, p->arrival_time, p->burst_time,
+           p->priority, p->memory_needed);
 
         if (parsed < 6) {
             fprintf(stderr, "[AVISO] Linha ignorada (formato inválido): %s", line);
