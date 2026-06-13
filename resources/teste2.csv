@@ -1,5 +1,5 @@
 pid,nome,chegada,tempo_cpu,prioridade,memoria_mb
 1,A,2,17,2,64
-2,B,6,20,1,128
-3,C,9,4,3,32
-4,D,0,12,4,96
+2,B,6,20,1,64
+3,C,9,4,3,64
+4,D,0,12,4,64
