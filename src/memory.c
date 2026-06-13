@@ -70,30 +70,44 @@ static int victim_lru(PhysicalMemory *mem, PageTable *pt) {
     return victim_fifo(mem, pt);
 }
 
-/* Encontra a vítima pelo algoritmo Ótimo */
 static int victim_optimal(PageTable *pt, int *future_refs, int future_len, int current_pos) {
-    int farthest   = -1;
-    int victim_page = -1;
-
+    int *seen = (int*)calloc(pt->max_pages, sizeof(int));
+    int last_page = -1;
+    int seen_count = 0;
+    int valid_count = 0;
+    
     for (int i = 0; i < pt->max_pages; i++) {
-        PageTableEntry *e = &pt->pages[i];
-        if (!e->valid) continue;
-
-        /* Procura próximo uso desta página no futuro */
-        int next_use = INT_MAX;
-        for (int j = current_pos; j < future_len; j++) {
-            if (future_refs[j] == i) {
-                next_use = j;
-                break;
+        if (pt->pages[i].valid) valid_count++;
+    }
+    
+    for (int j = current_pos; j < future_len; j++) {
+        int page = future_refs[j];
+        if (page < pt->max_pages && pt->pages[page].valid && !seen[page]) {
+            seen[page] = 1;
+            last_page = page;
+            seen_count++;
+            if (seen_count == valid_count) {
+                free(seen);
+                return last_page;
             }
         }
-
-        if (next_use > farthest) {
-            farthest    = next_use;
-            victim_page = i;
+    }
+    
+    // Procura uma página que está na memória mas NÃO será usada novamente no futuro
+    for (int i = 0; i < pt->max_pages; i++) {
+        if (pt->pages[i].valid && !seen[i]) {
+            free(seen);
+            return i;
         }
     }
-    return victim_page;
+    
+    free(seen);
+    if (last_page != -1) return last_page;
+    
+    for (int i = 0; i < pt->max_pages; i++) {
+        if (pt->pages[i].valid) return i;
+    }
+    return -1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -175,10 +189,31 @@ int memory_load_process(PhysicalMemory *mem, PageTable *pt,
     memset(pt->pages, 0, pages_needed * sizeof(PageTableEntry));
     
     int faults = 0;
+    
+    int ref_len = pages_needed * 3;
+    int *refs = future_refs;
+    int free_refs = 0;
+    if (refs == NULL) {
+        refs = (int*)malloc(ref_len * sizeof(int));
+        free_refs = 1;
+        srand(pid); // Seed determinística para reproduzir o comportamento
+        for (int i = 0; i < ref_len; i++) {
+            if (i < pages_needed) {
+                refs[i] = i; // Garante que todas as páginas são carregadas pelo menos uma vez
+            } else {
+                refs[i] = rand() % pages_needed; // Acessos aleatórios
+            }
+        }
+    } else {
+        ref_len = pages_needed; // Assumindo length = pages_needed se for fornecido
+    }
 
-    for (int i = 0; i < pages_needed; i++) {
-        faults += memory_access_page(mem, pt, i, policy, current_time,
-                                     future_refs, pages_needed);
+    for (int i = 0; i < ref_len; i++) {
+        faults += memory_access_page(mem, pt, refs[i], policy, i, refs, ref_len);
+    }
+    
+    if (free_refs) {
+        free(refs);
     }
 
     printf("[MEM] Processo %d carregado: %d páginas, %d page faults\n",
@@ -191,7 +226,7 @@ int memory_load_process(PhysicalMemory *mem, PageTable *pt,
 /* ------------------------------------------------------------------ */
 
 void memory_free_process(PhysicalMemory *mem, PageTable *pt, int pid) {
-    for (int i = 0; i < pt->page_count; i++) {
+    for (int i = 0; i < pt->max_pages; i++) {
         PageTableEntry *e = &pt->pages[i];
         if (e->valid) {
             mem->frames[e->frame_number] = -1;

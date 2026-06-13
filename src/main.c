@@ -35,8 +35,18 @@ int main(int argc, char *argv[]) {
     printf("\n=== Linha do Tempo (Round-Robin, q=4) ===\n");
     for (int i = 0; i < result.count; i++) {
         TimelineEntry *e = &result.entries[i];
-        printf("[%2d-%2d] %s\n", e->time_start, e->time_end,
-               e->pid == -1 ? "idle" : "P");
+        if (e->pid == -1) {
+            printf("[%2d-%2d] idle\n", e->time_start, e->time_end);
+        } else {
+            char *name = "?";
+            for (int j = 0; j < n; j++) {
+                if (procs[j].pid == e->pid) {
+                    name = procs[j].name;
+                    break;
+                }
+            }
+            printf("[%2d-%2d] P%d (%s)\n", e->time_start, e->time_end, e->pid, name);
+        }
     }
 
     printf("\nEspera Média  : %.2f\n", result.avg_waiting_time);
@@ -56,7 +66,7 @@ int main(int argc, char *argv[]) {
                                     procs[i].arrival_time,
                                     procs, n, NULL);
         mres.total_page_faults += f;
-        mres.total_accesses    += (procs[i].memory_needed * 1024) / PAGE_SIZE_KB;
+        mres.total_accesses    += ((procs[i].memory_needed * 1024) / PAGE_SIZE_KB) * 3;
         memory_free_process(&mem, &pt, procs[i].pid);
     }
     memory_print_stats(&mem, &mres);

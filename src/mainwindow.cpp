@@ -174,7 +174,7 @@ private slots:
                                              mpol, procs[i].arrival_time,
                                              procs, nProcs, nullptr);
             memResult.total_page_faults += faults;
-            memResult.total_accesses    += (procs[i].memory_needed * 1024) / PAGE_SIZE_KB;
+            memResult.total_accesses    += ((procs[i].memory_needed * 1024) / PAGE_SIZE_KB) * 3;
             memory_free_process(&physMem, &pt, procs[i].pid);
             // for (int i = 0; i < nProcs; i++){
             //     memory_free_process(&physMem, &pt, procs[i].pid);
