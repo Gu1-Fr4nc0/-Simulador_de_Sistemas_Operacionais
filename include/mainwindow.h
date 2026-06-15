@@ -2,9 +2,9 @@
 #define MAINWINDOW_H
 
 /*
- * MainWindow - Janela principal do Simulador de SO
+ * JanelaPrincipal - Interface gráfica principal do Simulador de SO
  *
- * Estrutura da GUI (Qt Widgets):
+ * Estrutura da Interface (Qt Widgets):
  *
  *  ┌─────────────────────────────────────────────────────┐
  *  │  [Carregar CSV]   arquivo: ---                       │
@@ -13,7 +13,7 @@
  *  │                        Mem Virtual: [1024 MB]        │
  *  │  [▶ Simular]                                         │
  *  ├─────────────────────────────────────────────────────┤
- *  │  Linha do Tempo  (canvas de desenho)                 │
+ *  │  Linha do Tempo  (área de desenho/Gantt)             │
  *  ├─────────────────────────────────────────────────────┤
  *  │  Métricas:  Espera Média | Resposta Média | Faults   │
  *  │  Tabela de processos (QTableWidget)                  │
@@ -24,8 +24,11 @@
 extern "C" {
 #endif
 
-/* Ponto de entrada da GUI; chama QApplication e exibe a janela */
-int gui_run(int argc, char *argv[]);
+/* 
+ * Função de entrada da Interface Gráfica. 
+ * Responsável por instanciar a aplicação Qt e abrir a janela na tela.
+ */
+int executar_interface_grafica(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }

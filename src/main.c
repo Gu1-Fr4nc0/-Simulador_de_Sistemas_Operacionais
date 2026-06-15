@@ -1,80 +1,101 @@
 /*
- * main.c — Ponto de entrada do Simulador de SO
+ * main.c — Ponto de entrada (Entry Point) do Simulador de SO
  *
- * Delega para gui_run() que inicializa o Qt e exibe a janela principal.
- * Para testes sem GUI, descomente o bloco #ifdef CLI_MODE abaixo.
+ * Seu objetivo é delegar a execução para a interface gráfica em Qt 
+ * contida no arquivo mainwindow.cpp.
+ *
+ * Nota: Caso o sistema precise rodar em terminal puro (CLI) para testes de 
+ * depuração ou CI/CD, basta definir a macro CLI_MODE na compilação.
  */
 
 #include <stdio.h>
 #include "../include/mainwindow.h"
 
-/* --- Modo CLI para testes rápidos sem Qt (opcional) --------------- */
+/* --- Modo Terminal/CLI (Apenas para Testes Rápidos sem Ambiente Gráfico) --- */
 #ifdef CLI_MODE
 #include "../include/process.h"
-#include "../include/scheduler.h"       
+#include "../include/scheduler.h"
 #include "../include/memory.h"
 #include <string.h>
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Uso (CLI): %s <arquivo.csv>\n", argv[0]);
+        fprintf(stderr, "Uso correto no modo CLI: %s <arquivo_processos.csv>\n", argv[0]);
         return 1;
     }
 
-    Process procs[MAX_PROCESSES];
-    int n = load_processes_from_csv(argv[1], procs, MAX_PROCESSES);
-    if (n <= 0) return 1;
+    /* Cria um array de processos com o limite máximo configurado */
+    Processo processos[MAX_PROCESSOS];
+    int quantidade_lida = carregar_processos_do_csv(argv[1], processos, MAX_PROCESSOS);
+    
+    if (quantidade_lida <= 0) return 1; /* Aborta se não carregou nada válido */
 
-    printf("=== Processos carregados ===\n");
-    print_processes(procs, n);
+    printf("=== Processos Carregados do Arquivo ===\n");
+    imprimir_processos(processos, quantidade_lida);
 
-    SchedulerResult result;
-    memset(&result, 0, sizeof(result));
-    run_scheduler(procs, n, SCHED_ROUND_ROBIN, 4, &result);
+    /* Teste do Escalonador de Processos (Round-Robin fixo para testes CLI) */
+    ResultadoEscalonador resultado_escalonador;
+    memset(&resultado_escalonador, 0, sizeof(resultado_escalonador));
+    executar_escalonador(processos, quantidade_lida, ESCALONADOR_ROUND_ROBIN, 4, &resultado_escalonador);
 
-    printf("\n=== Linha do Tempo (Round-Robin, q=4) ===\n");
-    for (int i = 0; i < result.count; i++) {
-        TimelineEntry *e = &result.entries[i];
-        if (e->pid == -1) {
-            printf("[%2d-%2d] idle\n", e->time_start, e->time_end);
+    printf("\n=== Gráfico de Gantt (Linha do Tempo - Round-Robin, Quantum=4) ===\n");
+    for (int i = 0; i < resultado_escalonador.quantidade_entradas; i++) {
+        EntradaLinhaDoTempo *entrada = &resultado_escalonador.entradas[i];
+        
+        if (entrada->id_processo == -1) {
+            printf("[%2d-%2d] CPU Ociosa (Idle)\n", entrada->tempo_inicio, entrada->tempo_fim);
         } else {
-            char *name = "?";
-            for (int j = 0; j < n; j++) {
-                if (procs[j].pid == e->pid) {
-                    name = procs[j].name;
+            char *nome_processo = "?";
+            for (int j = 0; j < quantidade_lida; j++) {
+                if (processos[j].id_processo == entrada->id_processo) {
+                    nome_processo = processos[j].nome;
                     break;
                 }
             }
-            printf("[%2d-%2d] P%d (%s)\n", e->time_start, e->time_end, e->pid, name);
+            printf("[%2d-%2d] Executando: P%d (%s)\n", entrada->tempo_inicio, entrada->tempo_fim, entrada->id_processo, nome_processo);
         }
     }
 
-    printf("\nEspera Média  : %.2f\n", result.avg_waiting_time);
-    printf("Resposta Média: %.2f\n", result.avg_response_time);
-    printf("Turnaround M. : %.2f\n", result.avg_turnaround_time);
+    /* Imprime as métricas do escalonador */
+    printf("\n--- Estatísticas do Escalonador ---\n");
+    printf("Tempo de Espera Médio   : %.2f\n", resultado_escalonador.media_tempo_espera);
+    printf("Tempo de Resposta Médio : %.2f\n", resultado_escalonador.media_tempo_resposta);
+    printf("Tempo de Retorno Médio  : %.2f\n", resultado_escalonador.media_tempo_retorno);
 
-    PhysicalMemory mem = {0};
-    MemoryResult   mres = {0, 0};
-    memory_init(&mem, 256, 1024);
+    /* Teste do Subsistema de Memória Virtual e Física */
+    MemoriaFisica memoria = {0};
+    ResultadoMemoria res_memoria = {0, 0};
+    
+    /* Simula 256MB de RAM física e 1024MB de espaço virtual em disco (Swap) */
+    inicializar_memoria(&memoria, 256, 1024);
 
-    PageTable pt = {0};
-    for (int i = 0; i < n; i++) {
-        memset(&pt, 0, sizeof(pt));
-        int f = memory_load_process(&mem, &pt, procs[i].pid,
-                                    procs[i].memory_needed,
-                                    PAGE_REPLACE_LRU,
-                                    procs[i].arrival_time,
-                                    procs, n, NULL);
-        mres.total_page_faults += f;
-        mres.total_accesses    += ((procs[i].memory_needed * 1024) / PAGE_SIZE_KB) * 3;
-        memory_free_process(&mem, &pt, procs[i].pid);
+    TabelaPaginas tabela_paginas = {0};
+    
+    /* Carrega os processos um por um na memória para testar page faults com algoritmo LRU */
+    for (int i = 0; i < quantidade_lida; i++) {
+        memset(&tabela_paginas, 0, sizeof(tabela_paginas));
+        
+        int faults = carregar_processo_memoria(&memoria, &tabela_paginas, processos[i].id_processo,
+                                               processos[i].memoria_necessaria,
+                                               POLITICA_LRU,
+                                               processos[i].tempo_chegada,
+                                               processos, quantidade_lida, NULL);
+                                               
+        res_memoria.total_falhas_pagina += faults;
+        res_memoria.total_acessos += ((processos[i].memoria_necessaria * 1024) / TAMANHO_PAGINA_KB) * 3;
+        
+        liberar_processo_memoria(&memoria, &tabela_paginas, processos[i].id_processo);
     }
-    memory_print_stats(&mem, &mres);
+    
+    /* Imprime o relatório consolidado da memória */
+    imprimir_estatisticas_memoria(&memoria, &res_memoria);
+    
     return 0;
 }
 #else
-/* --- Modo GUI (padrão) -------------------------------------------- */
+/* --- Modo Interface Gráfica (Comportamento Padrão) ------------------- */
 int main(int argc, char *argv[]) {
-    return gui_run(argc, argv);
+    /* Delega toda a execução visual para o Qt */
+    return executar_interface_grafica(argc, argv);
 }
 #endif

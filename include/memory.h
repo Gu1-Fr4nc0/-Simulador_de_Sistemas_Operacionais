@@ -3,62 +3,81 @@
 
 #include "process.h"
 
-#define PAGE_SIZE_KB   4      /* Tamanho de página em KB */
-#define MAX_FRAMES     1024
-#define MAX_PAGES      2048
+/* Constantes e configurações do subsistema de Memória */
+#define TAMANHO_PAGINA_KB 4      /* Define que cada página/frame terá 4 KB */
+#define MAX_QUADROS_FISICOS 1024 /* Quantidade máxima de frames físicos permitidos */
+#define MAX_PAGINAS_VIRTUAIS 2048 /* Quantidade máxima de páginas virtuais */
 
+/* Algoritmos de Substituição de Página suportados pelo simulador */
 typedef enum {
-    PAGE_REPLACE_FIFO,
-    PAGE_REPLACE_LRU,
-    PAGE_REPLACE_OPTIMAL
-} PageReplacePolicy;
+    POLITICA_FIFO,     /* First In, First Out (Primeiro a Entrar, Primeiro a Sair) */
+    POLITICA_LRU,      /* Least Recently Used (Menos Recentemente Usado) */
+    POLITICA_OTIMA     /* Algoritmo Ótimo (Substitui a página que demorará mais para ser usada) */
+} PoliticaSubstituicaoPagina;
 
+/* Representa uma única entrada (linha) na Tabela de Páginas do Processo */
 typedef struct {
-    int page_number;
-    int frame_number;
-    int valid;        /* 1 = na memória física, 0 = na memória virtual */
-    int last_used;    /* timestamp de último acesso (para LRU) */
-    int load_time;    /* timestamp de carga (para FIFO) */
-} PageTableEntry;
+    int numero_pagina; /* Número lógico da página do processo */
+    int numero_quadro; /* Número físico do frame na memória principal (se estiver lá) */
+    int valido;        /* Bit de validade: 1 = na memória física, 0 = apenas na memória virtual (disco) */
+    int ultimo_uso;    /* Marca de tempo do último acesso (usado no algoritmo LRU) */
+    int tempo_carga;   /* Marca de tempo de quando foi carregada na memória (usado no algoritmo FIFO) */
+} EntradaTabelaPagina;
 
+/* Tabela de Páginas exclusiva de um processo específico */
 typedef struct {
-    int pid;
-    PageTableEntry *pages;
-    int page_count;
-    int max_pages;
-    int victim_hint;
-} PageTable;
+    int id_processo;                 /* A qual PID esta tabela pertence */
+    EntradaTabelaPagina *paginas;    /* Ponteiro para o array dinâmico de páginas */
+    int quantidade_paginas;          /* Quantas páginas estão efetivamente alocadas na memória */
+    int max_paginas;                 /* O máximo de páginas que este processo precisa */
+    int dica_vitima;                 /* Ponteiro de controle para algoritmo FIFO circular (ponteiro de varredura) */
+} TabelaPaginas;
 
+/* Estrutura que gerencia a Memória RAM (física) do simulador */
 typedef struct {
-    int *frames;   /* pid do processo ocupando o frame, -1 = livre */
-    int frame_count;          /* total de frames físicos disponíveis */
-    int used_frames;
-} PhysicalMemory;
+    int *quadros;             /* Array que guarda o PID do processo que ocupa cada quadro (-1 se estiver livre) */
+    int total_quadros;        /* Total de quadros (frames) disponíveis na RAM */
+    int quadros_em_uso;       /* Quantos quadros estão ocupados atualmente */
+} MemoriaFisica;
 
+/* Agrupa os resultados das simulações de acesso à memória */
 typedef struct {
-    int total_page_faults;
-    int total_accesses;
-} MemoryResult;
+    int total_falhas_pagina; /* Contador total de Page Faults */
+    int total_acessos;       /* Contador total de acessos de memória solicitados */
+} ResultadoMemoria;
 
-/* Inicializa memória física e virtual */
-void memory_init(PhysicalMemory *mem, int physical_mb, int virtual_mb);
+/* 
+ * Inicializa a estrutura da memória física e prepara o ambiente virtual.
+ * Parâmetros recebidos vêm da interface ou CLI. 
+ */
+void inicializar_memoria(MemoriaFisica *memoria, int fisica_mb, int virtual_mb);
 
-/* Carrega processo na memória; retorna número de page faults gerados */
-int  memory_load_process(PhysicalMemory *mem, PageTable *pt,
-                         int pid, int memory_needed_mb,
-                         PageReplacePolicy policy, int current_time,
-                         Process *all_procs, int n_procs, int *future_refs);
+/* 
+ * Tenta carregar todas as páginas de um processo conforme necessidade.
+ * Retorna o número de page faults gerados durante o carregamento inicial.
+ */
+int carregar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
+                              int id_processo, int memoria_necessaria_mb,
+                              PoliticaSubstituicaoPagina politica, int tempo_atual,
+                              Processo *todos_processos, int num_processos, int *referencias_futuras);
 
-/* Remove processo da memória ao terminar */
-void memory_free_process(PhysicalMemory *mem, PageTable *pt, int pid);
+/* 
+ * Quando um processo termina, este método libera todos os quadros (frames) 
+ * que ele ocupava, tornando-os disponíveis novamente.
+ */
+void liberar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela, int id_processo);
 
-/* Acessa uma página; retorna 1 se page fault, 0 se hit */
-int  memory_access_page(PhysicalMemory *mem, PageTable *pt,
-                        int page_number, PageReplacePolicy policy,
-                        int current_time,
-                        int *future_refs, int future_len);
+/* 
+ * Simula a CPU tentando acessar uma página.
+ * Retorna 1 se ocorrer Page Fault (precisou buscar do disco) ou 0 se der Hit (já estava na RAM).
+ */
+int acessar_pagina_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
+                           int numero_pagina, PoliticaSubstituicaoPagina politica,
+                           int tempo_atual, int *referencias_futuras, int tamanho_referencias);
 
-/* Relatório de uso de memória */
-void memory_print_stats(const PhysicalMemory *mem, const MemoryResult *res);
+/* 
+ * Imprime um resumo do uso da memória e a taxa de page faults gerados.
+ */
+void imprimir_estatisticas_memoria(const MemoriaFisica *memoria, const ResultadoMemoria *resultado);
 
 #endif /* MEMORY_H */

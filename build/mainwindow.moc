@@ -20,25 +20,25 @@
 QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
-struct qt_meta_stringdata_TimelineWidget_t {
+struct qt_meta_stringdata_WidgetLinhaDoTempo_t {
     QByteArrayData data[1];
-    char stringdata0[15];
+    char stringdata0[19];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
-    qptrdiff(offsetof(qt_meta_stringdata_TimelineWidget_t, stringdata0) + ofs \
+    qptrdiff(offsetof(qt_meta_stringdata_WidgetLinhaDoTempo_t, stringdata0) + ofs \
         - idx * sizeof(QByteArrayData)) \
     )
-static const qt_meta_stringdata_TimelineWidget_t qt_meta_stringdata_TimelineWidget = {
+static const qt_meta_stringdata_WidgetLinhaDoTempo_t qt_meta_stringdata_WidgetLinhaDoTempo = {
     {
-QT_MOC_LITERAL(0, 0, 14) // "TimelineWidget"
+QT_MOC_LITERAL(0, 0, 18) // "WidgetLinhaDoTempo"
 
     },
-    "TimelineWidget"
+    "WidgetLinhaDoTempo"
 };
 #undef QT_MOC_LITERAL
 
-static const uint qt_meta_data_TimelineWidget[] = {
+static const uint qt_meta_data_WidgetLinhaDoTempo[] = {
 
  // content:
        8,       // revision
@@ -54,7 +54,7 @@ static const uint qt_meta_data_TimelineWidget[] = {
        0        // eod
 };
 
-void TimelineWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+void WidgetLinhaDoTempo::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
     (void)_o;
     (void)_id;
@@ -62,56 +62,56 @@ void TimelineWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _
     (void)_a;
 }
 
-QT_INIT_METAOBJECT const QMetaObject TimelineWidget::staticMetaObject = { {
+QT_INIT_METAOBJECT const QMetaObject WidgetLinhaDoTempo::staticMetaObject = { {
     QMetaObject::SuperData::link<QWidget::staticMetaObject>(),
-    qt_meta_stringdata_TimelineWidget.data,
-    qt_meta_data_TimelineWidget,
+    qt_meta_stringdata_WidgetLinhaDoTempo.data,
+    qt_meta_data_WidgetLinhaDoTempo,
     qt_static_metacall,
     nullptr,
     nullptr
 } };
 
 
-const QMetaObject *TimelineWidget::metaObject() const
+const QMetaObject *WidgetLinhaDoTempo::metaObject() const
 {
     return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject;
 }
 
-void *TimelineWidget::qt_metacast(const char *_clname)
+void *WidgetLinhaDoTempo::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_TimelineWidget.stringdata0))
+    if (!strcmp(_clname, qt_meta_stringdata_WidgetLinhaDoTempo.stringdata0))
         return static_cast<void*>(this);
     return QWidget::qt_metacast(_clname);
 }
 
-int TimelineWidget::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
+int WidgetLinhaDoTempo::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 {
     _id = QWidget::qt_metacall(_c, _id, _a);
     return _id;
 }
-struct qt_meta_stringdata_MainWindow_t {
+struct qt_meta_stringdata_JanelaPrincipal_t {
     QByteArrayData data[4];
-    char stringdata0[33];
+    char stringdata0[41];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
-    qptrdiff(offsetof(qt_meta_stringdata_MainWindow_t, stringdata0) + ofs \
+    qptrdiff(offsetof(qt_meta_stringdata_JanelaPrincipal_t, stringdata0) + ofs \
         - idx * sizeof(QByteArrayData)) \
     )
-static const qt_meta_stringdata_MainWindow_t qt_meta_stringdata_MainWindow = {
+static const qt_meta_stringdata_JanelaPrincipal_t qt_meta_stringdata_JanelaPrincipal = {
     {
-QT_MOC_LITERAL(0, 0, 10), // "MainWindow"
-QT_MOC_LITERAL(1, 11, 9), // "onLoadCSV"
-QT_MOC_LITERAL(2, 21, 0), // ""
-QT_MOC_LITERAL(3, 22, 10) // "onSimulate"
+QT_MOC_LITERAL(0, 0, 15), // "JanelaPrincipal"
+QT_MOC_LITERAL(1, 16, 13), // "aoCarregarCSV"
+QT_MOC_LITERAL(2, 30, 0), // ""
+QT_MOC_LITERAL(3, 31, 9) // "aoSimular"
 
     },
-    "MainWindow\0onLoadCSV\0\0onSimulate"
+    "JanelaPrincipal\0aoCarregarCSV\0\0aoSimular"
 };
 #undef QT_MOC_LITERAL
 
-static const uint qt_meta_data_MainWindow[] = {
+static const uint qt_meta_data_JanelaPrincipal[] = {
 
  // content:
        8,       // revision
@@ -135,44 +135,44 @@ static const uint qt_meta_data_MainWindow[] = {
        0        // eod
 };
 
-void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+void JanelaPrincipal::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
     if (_c == QMetaObject::InvokeMetaMethod) {
-        auto *_t = static_cast<MainWindow *>(_o);
+        auto *_t = static_cast<JanelaPrincipal *>(_o);
         (void)_t;
         switch (_id) {
-        case 0: _t->onLoadCSV(); break;
-        case 1: _t->onSimulate(); break;
+        case 0: _t->aoCarregarCSV(); break;
+        case 1: _t->aoSimular(); break;
         default: ;
         }
     }
     (void)_a;
 }
 
-QT_INIT_METAOBJECT const QMetaObject MainWindow::staticMetaObject = { {
+QT_INIT_METAOBJECT const QMetaObject JanelaPrincipal::staticMetaObject = { {
     QMetaObject::SuperData::link<QMainWindow::staticMetaObject>(),
-    qt_meta_stringdata_MainWindow.data,
-    qt_meta_data_MainWindow,
+    qt_meta_stringdata_JanelaPrincipal.data,
+    qt_meta_data_JanelaPrincipal,
     qt_static_metacall,
     nullptr,
     nullptr
 } };
 
 
-const QMetaObject *MainWindow::metaObject() const
+const QMetaObject *JanelaPrincipal::metaObject() const
 {
     return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject;
 }
 
-void *MainWindow::qt_metacast(const char *_clname)
+void *JanelaPrincipal::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_MainWindow.stringdata0))
+    if (!strcmp(_clname, qt_meta_stringdata_JanelaPrincipal.stringdata0))
         return static_cast<void*>(this);
     return QMainWindow::qt_metacast(_clname);
 }
 
-int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
+int JanelaPrincipal::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 {
     _id = QMainWindow::qt_metacall(_c, _id, _a);
     if (_id < 0)

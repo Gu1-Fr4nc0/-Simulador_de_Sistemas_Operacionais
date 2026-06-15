@@ -4,246 +4,294 @@
 #include "../include/scheduler.h"
 
 /* ------------------------------------------------------------------ */
-/* Utilitários internos                                                 */
+/* Utilitários Internos do Escalonador                                */
 /* ------------------------------------------------------------------ */
 
-static void add_timeline(SchedulerResult *r, int pid, int t_start, int t_end) {
-    if (r->count >= 4096) return;
-    r->entries[r->count].pid        = pid;
-    r->entries[r->count].time_start = t_start;
-    r->entries[r->count].time_end   = t_end;
-    r->count++;
+/* 
+ * Função: adicionar_linha_do_tempo
+ * Objetivo: Registrar um evento de uso da CPU na estrutura de resultados.
+ */
+static void adicionar_linha_do_tempo(ResultadoEscalonador *resultado, int id_processo, int tempo_inicio, int tempo_fim) {
+    if (resultado->quantidade_entradas >= 4096) return; /* Evita estouro de buffer */
+    
+    resultado->entradas[resultado->quantidade_entradas].id_processo  = id_processo;
+    resultado->entradas[resultado->quantidade_entradas].tempo_inicio = tempo_inicio;
+    resultado->entradas[resultado->quantidade_entradas].tempo_fim    = tempo_fim;
+    
+    resultado->quantidade_entradas++;
 }
 
-void compute_metrics(Process procs[], int n, SchedulerResult *r) {
-    double total_wait = 0, total_resp = 0, total_turn = 0;
-    for (int i = 0; i < n; i++) {
-        Process *p = &procs[i];
-        p->turnaround_time = p->finish_time - p->arrival_time;
-        p->waiting_time    = p->turnaround_time - p->burst_time;
-        p->response_time   = p->start_time - p->arrival_time;
+/* 
+ * Função: calcular_metricas
+ * Objetivo: Calcular os tempos médios (Espera, Resposta e Retorno/Turnaround) baseando-se nos processos finalizados.
+ */
+void calcular_metricas(Processo processos[], int quantidade, ResultadoEscalonador *resultado) {
+    double total_espera = 0, total_resposta = 0, total_retorno = 0;
+    
+    for (int i = 0; i < quantidade; i++) {
+        Processo *p = &processos[i];
+        
+        /* Turnaround = Tempo de Fim - Tempo de Chegada */
+        p->tempo_retorno = p->tempo_fim - p->tempo_chegada;
+        
+        /* Espera = Turnaround - Tempo Total Necessário de CPU */
+        p->tempo_espera  = p->tempo_retorno - p->tempo_execucao;
+        
+        /* Resposta = Primeiro Uso da CPU - Tempo de Chegada */
+        p->tempo_resposta = p->tempo_inicio - p->tempo_chegada;
 
-        total_wait += p->waiting_time;
-        total_resp += p->response_time;
-        total_turn += p->turnaround_time;
+        total_espera   += p->tempo_espera;
+        total_resposta += p->tempo_resposta;
+        total_retorno  += p->tempo_retorno;
     }
-    r->avg_waiting_time    = total_wait / n;
-    r->avg_response_time   = total_resp / n;
-    r->avg_turnaround_time = total_turn / n;
+    
+    /* Preenche o consolidado no ponteiro de resultado */
+    resultado->media_tempo_espera   = total_espera / quantidade;
+    resultado->media_tempo_resposta = total_resposta / quantidade;
+    resultado->media_tempo_retorno  = total_retorno / quantidade;
 }
 
 
 /* ------------------------------------------------------------------ */
-/* Round-Robin                                                          */
+/* Algoritmo: Round-Robin (Chaveamento Circular com Quantum)          */
 /* ------------------------------------------------------------------ */
 
-void sched_round_robin(Process procs[], int n, int quantum, SchedulerResult *r) {
-    /* Copia local para não modificar o array original */
-    Process ps[MAX_PROCESSES];
-    memcpy(ps, procs, n * sizeof(Process));
+void escalonar_round_robin(Processo processos[], int quantidade, int quantum, ResultadoEscalonador *resultado) {
+    /* Cria uma cópia local do array de processos para que a simulação não destrua os dados originais no meio do caminho */
+    Processo ps[MAX_PROCESSOS];
+    memcpy(ps, processos, quantidade * sizeof(Processo));
 
-    int queue[MAX_PROCESSES * 100];
-    int head = 0, tail = 0;
-    int time = 0;
-    int completed = 0;
+    /* Fila circular simples implementada num array gigante */
+    int fila[MAX_PROCESSOS * 100];
+    int cabeca = 0, cauda = 0;
+    int tempo_atual = 0;
+    int concluidos = 0;
 
-    /* Fila circular de índices */
-    #define ENQUEUE(idx) queue[tail++ % (MAX_PROCESSES*100)] = (idx)
-    #define DEQUEUE()    queue[head++ % (MAX_PROCESSES*100)]
+    /* Macros para enfileirar e desenfileirar usando aritmética modular (circular) */
+    #define ENFILEIRAR(indice) fila[cauda++ % (MAX_PROCESSOS*100)] = (indice)
+    #define DESENFILEIRAR()    fila[cabeca++ % (MAX_PROCESSOS*100)]
 
-    /* Adiciona processos que chegam no tempo 0 */
-    for (int i = 0; i < n; i++)
-        if (ps[i].arrival_time == 0) ENQUEUE(i);
+    /* Fase inicial: Adiciona na fila processos que já estão no sistema no tempo 0 */
+    for (int i = 0; i < quantidade; i++)
+        if (ps[i].tempo_chegada == 0) ENFILEIRAR(i);
 
-    while (completed < n) {
-        if (head == tail) { /* fila vazia, CPU ociosa */
-            add_timeline(r, -1, time, time + 1);
-            time++;
-            /* verifica chegadas */
-            for (int i = 0; i < n; i++)
-                if (ps[i].arrival_time == time && ps[i].state == STATE_NEW)
-                    ENQUEUE(i);
+    /* Laço principal da simulação até que todos acabem */
+    while (concluidos < quantidade) {
+        if (cabeca == cauda) { 
+            /* Se a fila está vazia, a CPU fica ociosa (idle) por 1 tick de tempo */
+            adicionar_linha_do_tempo(resultado, -1, tempo_atual, tempo_atual + 1);
+            tempo_atual++;
+            
+            /* Verifica se algum processo chegou exatamente agora */
+            for (int i = 0; i < quantidade; i++)
+                if (ps[i].tempo_chegada == tempo_atual && ps[i].estado == ESTADO_NOVO)
+                    ENFILEIRAR(i);
             continue;
         }
 
-        int idx = DEQUEUE();
-        Process *p = &ps[idx];
+        /* Tira o próximo processo da fila */
+        int indice = DESENFILEIRAR();
+        Processo *p = &ps[indice];
 
-        if (p->state == STATE_NEW || p->state == STATE_READY) {
-            if (p->start_time == -1) p->start_time = time;
-            p->state = STATE_RUNNING;
+        /* Se for a primeira vez que ele executa, marca o start_time para o Tempo de Resposta */
+        if (p->estado == ESTADO_NOVO || p->estado == ESTADO_PRONTO) {
+            if (p->tempo_inicio == -1) p->tempo_inicio = tempo_atual;
+            p->estado = ESTADO_EXECUTANDO;
         }
 
-        int run = (p->remaining_time < quantum) ? p->remaining_time : quantum;
-        add_timeline(r, p->pid, time, time + run);
-        p->remaining_time -= run;
-        time += run;
+        /* O processo roda o mínimo entre o que falta pra ele acabar e o limite de tempo (Quantum) */
+        int execucao_agora = (p->tempo_restante < quantum) ? p->tempo_restante : quantum;
+        
+        /* Registra na timeline visual o evento de execução */
+        adicionar_linha_do_tempo(resultado, p->id_processo, tempo_atual, tempo_atual + execucao_agora);
+        
+        p->tempo_restante -= execucao_agora;
+        tempo_atual += execucao_agora;
 
-        /* Verifica chegadas durante o quantum */
-        for (int i = 0; i < n; i++)
-            if (ps[i].arrival_time > time - run &&
-                ps[i].arrival_time <= time &&
-                ps[i].state == STATE_NEW) {
-                ps[i].state = STATE_READY;
-                ENQUEUE(i);
+        /* Importante: Verifica se enquanto este processo rodava, novos processos chegaram na fila */
+        for (int i = 0; i < quantidade; i++) {
+            if (ps[i].tempo_chegada > tempo_atual - execucao_agora &&
+                ps[i].tempo_chegada <= tempo_atual &&
+                ps[i].estado == ESTADO_NOVO) {
+                ps[i].estado = ESTADO_PRONTO;
+                ENFILEIRAR(i);
             }
+        }
 
-        if (p->remaining_time == 0) {
-            p->state       = STATE_TERMINATED;
-            p->finish_time = time;
-            completed++;
+        /* Ao fim do quantum, verifica se o processo terminou... */
+        if (p->tempo_restante == 0) {
+            p->estado      = ESTADO_TERMINADO;
+            p->tempo_fim   = tempo_atual;
+            concluidos++;
         } else {
-            p->state = STATE_READY;
-            ENQUEUE(idx);
+            /* ... se não, volta pra fila de prontos */
+            p->estado = ESTADO_PRONTO;
+            ENFILEIRAR(indice);
         }
     }
 
-    /* Copia métricas de volta */
-    memcpy(procs, ps, n * sizeof(Process));
-    compute_metrics(procs, n, r);
-    #undef ENQUEUE
-    #undef DEQUEUE
+    /* Copia os dados resultantes modificados de volta para o array original */
+    memcpy(processos, ps, quantidade * sizeof(Processo));
+    
+    /* Calcula o resultado estatístico */
+    calcular_metricas(processos, quantidade, resultado);
+    
+    #undef ENFILEIRAR
+    #undef DESENFILEIRAR
 }
 
 /* ------------------------------------------------------------------ */
-/* SJF Preemptivo (Shortest Remaining Time First - SRTF)               */
+/* Algoritmo: SJF Preemptivo (Shortest Remaining Time First - SRTF)   */
 /* ------------------------------------------------------------------ */
 
-void sched_sjf_preemptive(Process procs[], int n, SchedulerResult *r) {
-    Process ps[MAX_PROCESSES];
-    memcpy(ps, procs, n * sizeof(Process));
+void escalonar_sjf_preemptivo(Processo processos[], int quantidade, ResultadoEscalonador *resultado) {
+    /* Cópia de trabalho */
+    Processo ps[MAX_PROCESSOS];
+    memcpy(ps, processos, quantidade * sizeof(Processo));
 
-    int time = 0, completed = 0;
-    int prev_pid = -1, slice_start = 0;
+    int tempo_atual = 0, concluidos = 0;
+    int pid_anterior = -1, inicio_fatia_tempo = 0;
 
-    while (completed < n) {
-        /* Encontra processo com menor remaining_time entre os chegados */
-        int best = -1;
-        for (int i = 0; i < n; i++) {
-            if (ps[i].arrival_time <= time && ps[i].state != STATE_TERMINATED) {
-                if (best == -1 || ps[i].remaining_time < ps[best].remaining_time)
-                    best = i;
+    /* Executa simulando 1 unidade de tempo por vez */
+    while (concluidos < quantidade) {
+        
+        /* Busca na lista de processos ativos o que tem o MENOR tempo restante (Shortest Job) */
+        int melhor_indice = -1;
+        for (int i = 0; i < quantidade; i++) {
+            if (ps[i].tempo_chegada <= tempo_atual && ps[i].estado != ESTADO_TERMINADO) {
+                if (melhor_indice == -1 || ps[i].tempo_restante < ps[melhor_indice].tempo_restante)
+                    melhor_indice = i;
             }
         }
 
-        if (best == -1) { /* CPU ociosa */
-            if (prev_pid != -1) {
-                add_timeline(r, prev_pid, slice_start, time);
-                prev_pid = -1;
+        /* Se ninguém está pronto, a CPU fica ociosa */
+        if (melhor_indice == -1) {
+            if (pid_anterior != -1) {
+                adicionar_linha_do_tempo(resultado, pid_anterior, inicio_fatia_tempo, tempo_atual);
+                pid_anterior = -1;
             }
-            add_timeline(r, -1, time, time + 1);
-            time++;
+            adicionar_linha_do_tempo(resultado, -1, tempo_atual, tempo_atual + 1);
+            tempo_atual++;
             continue;
         }
 
-        Process *p = &ps[best];
-        if (p->start_time == -1) p->start_time = time;
-        if (p->state != STATE_RUNNING) p->state = STATE_RUNNING;
+        Processo *p = &ps[melhor_indice];
+        if (p->tempo_inicio == -1) p->tempo_inicio = tempo_atual;
+        if (p->estado != ESTADO_EXECUTANDO) p->estado = ESTADO_EXECUTANDO;
 
-        /* Detecta troca de processo para compactar timeline */
-        if (p->pid != prev_pid) {
-            if (prev_pid != -1)
-                add_timeline(r, prev_pid, slice_start, time);
-            slice_start = time;
-            prev_pid = p->pid;
+        /* Detecta se houve uma troca de contexto (preempção) para adicionar na timeline */
+        if (p->id_processo != pid_anterior) {
+            if (pid_anterior != -1)
+                adicionar_linha_do_tempo(resultado, pid_anterior, inicio_fatia_tempo, tempo_atual);
+            inicio_fatia_tempo = tempo_atual;
+            pid_anterior = p->id_processo;
         }
 
-        p->remaining_time--;
-        time++;
+        /* O processo roda por 1 unidade de tempo */
+        p->tempo_restante--;
+        tempo_atual++;
 
-        if (p->remaining_time == 0) {
-            p->state       = STATE_TERMINATED;
-            p->finish_time = time;
-            completed++;
-            add_timeline(r, p->pid, slice_start, time);
-            prev_pid   = -1;
-            slice_start = time;
+        /* Se terminou de executar, fecha os dados do processo */
+        if (p->tempo_restante == 0) {
+            p->estado      = ESTADO_TERMINADO;
+            p->tempo_fim   = tempo_atual;
+            concluidos++;
+            
+            adicionar_linha_do_tempo(resultado, p->id_processo, inicio_fatia_tempo, tempo_atual);
+            pid_anterior = -1;
+            inicio_fatia_tempo = tempo_atual;
         }
     }
 
-    memcpy(procs, ps, n * sizeof(Process));
-    compute_metrics(procs, n, r);
+    memcpy(processos, ps, quantidade * sizeof(Processo));
+    calcular_metricas(processos, quantidade, resultado);
 }
 
 /* ------------------------------------------------------------------ */
-/* Prioridade Preemptiva                                                */
+/* Algoritmo: Prioridade Preemptiva                                   */
 /* ------------------------------------------------------------------ */
 
-void sched_priority_preemptive(Process procs[], int n, SchedulerResult *r) {
-    Process ps[MAX_PROCESSES];
-    memcpy(ps, procs, n * sizeof(Process));
+void escalonar_prioridade_preemptiva(Processo processos[], int quantidade, ResultadoEscalonador *resultado) {
+    /* Cópia de trabalho */
+    Processo ps[MAX_PROCESSOS];
+    memcpy(ps, processos, quantidade * sizeof(Processo));
 
+    int tempo_atual = 0, concluidos = 0;
+    int pid_anterior = -1, inicio_fatia_tempo = 0;
 
-
-    int time = 0, completed = 0;
-    int prev_pid = -1, slice_start = 0;
-
-    while (completed < n) {
-        /* Maior prioridade = menor número de prioridade */
-        int best = -1;
-        for (int i = 0; i < n; i++) {
-            if (ps[i].arrival_time <= time && ps[i].state != STATE_TERMINATED) {
-                if (best == -1 || ps[i].priority < ps[best].priority)
-                    best = i;
+    while (concluidos < quantidade) {
+        
+        /* Busca na lista de processos ativos o que tem a MAIOR prioridade (Menor número) */
+        int melhor_indice = -1;
+        for (int i = 0; i < quantidade; i++) {
+            if (ps[i].tempo_chegada <= tempo_atual && ps[i].estado != ESTADO_TERMINADO) {
+                /* Prioridade numericamente menor significa que tem mais "poder" de interrupção */
+                if (melhor_indice == -1 || ps[i].prioridade < ps[melhor_indice].prioridade)
+                    melhor_indice = i;
             }
         }
 
-        if (best == -1) {
-            if (prev_pid != -1) {
-                add_timeline(r, prev_pid, slice_start, time);
-                prev_pid = -1;
+        if (melhor_indice == -1) {
+            if (pid_anterior != -1) {
+                adicionar_linha_do_tempo(resultado, pid_anterior, inicio_fatia_tempo, tempo_atual);
+                pid_anterior = -1;
             }
-            add_timeline(r, -1, time, time + 1);
-            time++;
+            adicionar_linha_do_tempo(resultado, -1, tempo_atual, tempo_atual + 1);
+            tempo_atual++;
             continue;
         }
 
-        Process *p = &ps[best];
-        if (p->start_time == -1) p->start_time = time;
-        p->state = STATE_RUNNING;
+        Processo *p = &ps[melhor_indice];
+        if (p->tempo_inicio == -1) p->tempo_inicio = tempo_atual;
+        p->estado = ESTADO_EXECUTANDO;
 
-        if (p->pid != prev_pid) {
-            if (prev_pid != -1)
-                add_timeline(r, prev_pid, slice_start, time);
-            slice_start = time;
-            prev_pid = p->pid;
+        /* Preempção baseada em prioridade detectada */
+        if (p->id_processo != pid_anterior) {
+            if (pid_anterior != -1)
+                adicionar_linha_do_tempo(resultado, pid_anterior, inicio_fatia_tempo, tempo_atual);
+            inicio_fatia_tempo = tempo_atual;
+            pid_anterior = p->id_processo;
         }
 
-        p->remaining_time--;
-        time++;
+        p->tempo_restante--;
+        tempo_atual++;
 
-
-        if (p->remaining_time == 0) {
-            p->state       = STATE_TERMINATED;
-            p->finish_time = time;
-            completed++;
-            add_timeline(r, p->pid, slice_start, time);
-            prev_pid    = -1;
-            slice_start = time;
+        if (p->tempo_restante == 0) {
+            p->estado      = ESTADO_TERMINADO;
+            p->tempo_fim   = tempo_atual;
+            concluidos++;
+            
+            adicionar_linha_do_tempo(resultado, p->id_processo, inicio_fatia_tempo, tempo_atual);
+            pid_anterior       = -1;
+            inicio_fatia_tempo = tempo_atual;
         }
     }
 
-    memcpy(procs, ps, n * sizeof(Process));
-    compute_metrics(procs, n, r);
+    memcpy(processos, ps, quantidade * sizeof(Processo));
+    calcular_metricas(processos, quantidade, resultado);
 }
 
 /* ------------------------------------------------------------------ */
-/* Dispatcher                                                           */
+/* Função Despachante (Dispatcher) Geral                              */
 /* ------------------------------------------------------------------ */
 
-void run_scheduler(Process procs[], int n,
-                   SchedulerType type, int quantum,
-                   SchedulerResult *result) {
-    memset(result, 0, sizeof(SchedulerResult));
-    switch (type) {
-        case SCHED_ROUND_ROBIN:
-            sched_round_robin(procs, n, quantum, result);
+void executar_escalonador(Processo processos[], int quantidade,
+                          TipoEscalonador tipo_algoritmo, int quantum,
+                          ResultadoEscalonador *resultado) {
+                              
+    /* Zera a estrutura de resultado */
+    memset(resultado, 0, sizeof(ResultadoEscalonador));
+    
+    /* Chama a implementação correta de acordo com a seleção na interface */
+    switch (tipo_algoritmo) {
+        case ESCALONADOR_ROUND_ROBIN:
+            escalonar_round_robin(processos, quantidade, quantum, resultado);
             break;
-        case SCHED_SJF_PREEMPTIVE:
-            sched_sjf_preemptive(procs, n, result);
+        case ESCALONADOR_SJF_PREEMPTIVO:
+            escalonar_sjf_preemptivo(processos, quantidade, resultado);
             break;
-        case SCHED_PRIORITY_PREEMPTIVE:
-            sched_priority_preemptive(procs, n, result);
+        case ESCALONADOR_PRIORIDADE_PREEMPTIVA:
+            escalonar_prioridade_preemptiva(processos, quantidade, resultado);
             break;
     }
 }
