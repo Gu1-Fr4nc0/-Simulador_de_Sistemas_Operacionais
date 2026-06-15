@@ -11,7 +11,7 @@
 /* --- Modo CLI para testes rápidos sem Qt (opcional) --------------- */
 #ifdef CLI_MODE
 #include "../include/process.h"
-#include "../include/scheduler.h"
+#include "../include/scheduler.h"       
 #include "../include/memory.h"
 #include <string.h>
 
