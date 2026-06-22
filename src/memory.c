@@ -83,9 +83,19 @@ static int encontrar_vitima_fifo(MemoriaFisica *memoria, TabelaPaginas *tabela) 
 /* Encontra a página "vítima" a ser substituída usando a política LRU (Menos Usada Recentemente) */
 static int encontrar_vitima_lru(MemoriaFisica *memoria, TabelaPaginas *tabela) {
     (void)memoria;
-    /* Nesta versão com acesso pseudo-sequencial na carga, LRU muitas vezes se aproxima do FIFO.
-     * Na prática, deveríamos iterar procurando a que tem a variável "ultimo_uso" mais velha. */
-    return encontrar_vitima_fifo(memoria, tabela);
+    int indice_minimo = -1;
+    int tempo_minimo = INT_MAX;
+    
+    /* Percorre a tabela do processo e encontra a página válida que foi usada há mais tempo */
+    for (int i = 0; i < tabela->max_paginas; i++) {
+        if (tabela->paginas[i].valido) {
+            if (tabela->paginas[i].ultimo_uso < tempo_minimo) {
+                tempo_minimo = tabela->paginas[i].ultimo_uso;
+                indice_minimo = i;
+            }
+        }
+    }
+    return indice_minimo;
 }
 
 /* Encontra a página "vítima" usando o Algoritmo Ótimo (Substitui a que não será usada por mais tempo no futuro) */
@@ -203,6 +213,7 @@ int carregar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
                               Processo *todos_processos, int num_processos, int *referencias_futuras) {
     (void)todos_processos;
     (void)num_processos;
+    (void)tempo_atual;
     
     tabela->id_processo        = id_processo;
     tabela->quantidade_paginas = 0;

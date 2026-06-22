@@ -1,0 +1,3 @@
+pid,nome,chegada,tempo_cpu,prioridade,memoria_mb
+1,P1,0,10,3,512
+2,P2,3,2,1,128
