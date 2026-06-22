@@ -17,10 +17,12 @@
 #include "../include/scheduler.h"
 #include "../include/memory.h"
 #include <string.h>
+#include <stdlib.h>
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Uso correto no modo CLI: %s <arquivo_processos.csv>\n", argv[0]);
+        fprintf(stderr, "Uso correto no modo CLI: %s <arquivo_processos.csv> [memoria_fisica_mb] [memoria_virtual_mb]\n", argv[0]);
         return 1;
     }
 
@@ -66,8 +68,17 @@ int main(int argc, char *argv[]) {
     MemoriaFisica memoria = {0};
     ResultadoMemoria res_memoria = {0, 0};
     
-    /* Simula 256MB de RAM física e 1024MB de espaço virtual em disco (Swap) */
-    inicializar_memoria(&memoria, 256, 1024);
+    int mem_fisica = 256;
+    int mem_virtual = 1024;
+    if (argc >= 3) {
+        mem_fisica = atoi(argv[2]);
+    }
+    if (argc >= 4) {
+        mem_virtual = atoi(argv[3]);
+    }
+
+    /* Simula a RAM física e o espaço virtual em disco (Swap) configurados */
+    inicializar_memoria(&memoria, mem_fisica, mem_virtual);
 
     TabelaPaginas tabela_paginas = {0};
     

@@ -133,6 +133,7 @@ public:
         construirInterface();
     }
 
+
 private slots:
     /* Chamado quando o usuário clica no botão de carregar CSV */
     void aoCarregarCSV() {
@@ -208,13 +209,14 @@ private slots:
         rotuloMediaResposta->setText(
             QString("Resposta Média: %1").arg(resultadoEscalonador.media_tempo_resposta, 0, 'f', 2));
         rotuloFalhasPagina->setText(
-            QString("Faltas de Página (Page Faults): %1").arg(resultadoMemoria.total_falhas_pagina));
+            QString("Paginação (Page): %1").arg(resultadoMemoria.total_falhas_pagina));
 
         atualizarMetricasNaTabela();
         statusBar()->showMessage("Simulação concluída com sucesso.");
     }
 
 private:
+
     /* --- Dados da Simulação --- */
     Processo             processos[MAX_PROCESSOS];
     int                  total_processos = 0;
@@ -269,13 +271,13 @@ private:
 
         gridConfiguracao->addWidget(new QLabel("Memória RAM Física (MB):"), 2, 2);
         spinBoxMemFisica = new QSpinBox();
-        spinBoxMemFisica->setRange(64, 65536);
+        spinBoxMemFisica->setRange(1, 65536);
         spinBoxMemFisica->setValue(256);
         gridConfiguracao->addWidget(spinBoxMemFisica, 2, 3);
 
         gridConfiguracao->addWidget(new QLabel("Memória Virtual em Disco (MB):"), 3, 2);
         spinBoxMemVirtual = new QSpinBox();
-        spinBoxMemVirtual->setRange(256, 131072);
+        spinBoxMemVirtual->setRange(1, 131072);
         spinBoxMemVirtual->setValue(1024);
         gridConfiguracao->addWidget(spinBoxMemVirtual, 3, 3);
 
@@ -304,7 +306,7 @@ private:
         
         rotuloMediaEspera   = new QLabel("Espera Média: --");
         rotuloMediaResposta = new QLabel("Resposta Média: --");
-        rotuloFalhasPagina  = new QLabel("Faltas de Página: --");
+        rotuloFalhasPagina  = new QLabel("Páginação: --");
         
         layoutMetricas->addWidget(rotuloMediaEspera);
         layoutMetricas->addWidget(rotuloMediaResposta);

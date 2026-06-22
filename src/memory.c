@@ -250,13 +250,32 @@ int carregar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
         tamanho_refs = paginas_necessarias; /* Usa o que foi provido */
     }
 
+    int *pagina_carregada_antes = (int *)calloc(paginas_necessarias, sizeof(int));
+
     /* Simula cada um dos acessos sequencialmente */
     for (int i = 0; i < tamanho_refs; i++) {
-        falhas_de_pagina += acessar_pagina_memoria(memoria, tabela, referencias[i], politica, i, referencias, tamanho_refs);
+        int pagina = referencias[i];
+        int falha = acessar_pagina_memoria(memoria, tabela, pagina, politica, i, referencias, tamanho_refs);
+        if (falha) {
+            if (!pagina_carregada_antes[pagina]) {
+                falhas_de_pagina++;
+                pagina_carregada_antes[pagina] = 1;
+            }
+        }
     }
+
+    free(pagina_carregada_antes);
     
     if (liberar_referencias_criadas) {
         free(referencias);
+    }
+
+    // Cada página é carregada uma vez — fault na primeira carga
+    // Se não há frame livre, substitui uma vítima (1 fault, não 2)
+    // O total de faults nunca pode ultrapassar pages_needed
+    if (falhas_de_pagina > paginas_necessarias) {
+        fprintf(stderr, "[AVISO] faults(%d) > pages(%d) — bug no contador!\n",
+                falhas_de_pagina, paginas_necessarias);
     }
 
     printf("[MEMORIA] Processo %d simulado: %d páginas necessárias, ocorreu(ram) %d Page Faults.\n",
