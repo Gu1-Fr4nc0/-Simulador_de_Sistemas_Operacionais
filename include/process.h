@@ -14,6 +14,14 @@ typedef enum {
     ESTADO_TERMINADO    /* Processo concluiu toda a sua execução */
 } EstadoProcesso;
 
+#define MAX_HISTORICO_MEMORIA 512
+
+/* Representa uma entrada individual no histórico de acessos à memória */
+typedef struct {
+    int pagina;
+    int falha; /* 1 = Page Fault, 0 = Page Hit */
+} EntradaHistoricoMemoria;
+
 /* Estrutura que representa um Processo no nosso Simulador */
 typedef struct {
     int   id_processo;                 /* Identificador único do processo (PID) */
@@ -29,12 +37,16 @@ typedef struct {
     /* Controle de estado do processo */
     EstadoProcesso estado;             /* Qual o estado atual deste processo */
 
-    /* Variáveis para cálculo de métricas ao final da simulação */
+    /* Variáveis para cálculo de métricas al final da simulação */
     int   tempo_inicio;                /* Instante de tempo em que o processo rodou pela primeira vez na CPU */
     int   tempo_fim;                   /* Instante de tempo em que o processo finalizou sua execução */
     int   tempo_espera;                /* Tempo total em que o processo ficou esperando na fila de prontos */
     int   tempo_resposta;              /* Tempo gasto desde a chegada até o primeiro acesso à CPU */
     int   tempo_retorno;               /* Tempo total do processo no sistema (desde a chegada até o fim - Turnaround) */
+
+    /* Histórico de requisições de página para visualização */
+    EntradaHistoricoMemoria historico_acessos[MAX_HISTORICO_MEMORIA];
+    int quantidade_acessos;
 } Processo;
 
 /* 

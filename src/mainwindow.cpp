@@ -26,6 +26,7 @@
 #include <vector>
 #include <map>
 #include <QStatusBar>
+#include <iostream>
 
 extern "C" {
 #include "../include/process.h"
@@ -212,7 +213,83 @@ private slots:
             QString("Paginação (Page): %1").arg(resultadoMemoria.total_falhas_pagina));
 
         atualizarMetricasNaTabela();
+        if (total_processos > 0) {
+            tabelaProcessos->setCurrentCell(0, 0);
+        } else {
+            aoSelecionarProcesso();
+        }
         statusBar()->showMessage("Simulação concluída com sucesso.");
+    }
+
+    void aoSelecionarProcesso() {
+        int linha = tabelaProcessos->currentRow();
+        if (linha < 0 || linha >= total_processos) {
+            std::cout << "[GUI DEBUG] aoSelecionarProcesso: linha invalida=" << linha << std::endl;
+            rotuloInfoProcesso->setText("Selecione um processo para ver os acessos.");
+            rotuloTotalAcessos->setText("Total Acessos: --");
+            rotuloFalhasMembro->setText("Page Faults: --");
+            tabelaFilaRequisicoes->setRowCount(0);
+            return;
+        }
+
+        QTableWidgetItem *itemPID = tabelaProcessos->item(linha, 0);
+        if (!itemPID) {
+            std::cout << "[GUI DEBUG] aoSelecionarProcesso: itemPID e nulo" << std::endl;
+            return;
+        }
+        int pid = itemPID->text().toInt();
+
+        Processo *p = nullptr;
+        for (int i = 0; i < total_processos; i++) {
+            if (processos[i].id_processo == pid) {
+                p = &processos[i];
+                break;
+            }
+        }
+
+        if (!p) {
+            std::cout << "[GUI DEBUG] aoSelecionarProcesso: processo nao encontrado para PID=" << pid << std::endl;
+            return;
+        }
+
+        std::cout << "[GUI DEBUG] aoSelecionarProcesso: PID=" << pid 
+                  << " nome=" << p->nome 
+                  << " quantidade_acessos=" << p->quantidade_acessos << std::endl;
+
+        rotuloInfoProcesso->setText(QString("Processo: %1 (PID: %2)").arg(p->nome).arg(p->id_processo));
+        
+        int faults = 0;
+        for (int i = 0; i < p->quantidade_acessos; i++) {
+            if (p->historico_acessos[i].falha) faults++;
+        }
+        
+        rotuloTotalAcessos->setText(QString("Total Acessos: %1").arg(p->quantidade_acessos));
+        
+        double pct = 0.0;
+        if (p->quantidade_acessos > 0) {
+            pct = (100.0 * faults) / p->quantidade_acessos;
+        }
+        rotuloFalhasMembro->setText(QString("Page Faults: %1 (%2%)").arg(faults).arg(pct, 0, 'f', 1));
+
+        tabelaFilaRequisicoes->setRowCount(p->quantidade_acessos);
+        for (int i = 0; i < p->quantidade_acessos; i++) {
+            // Ordem
+            tabelaFilaRequisicoes->setItem(i, 0, new QTableWidgetItem(QString::number(i + 1)));
+            
+            // Página
+            tabelaFilaRequisicoes->setItem(i, 1, new QTableWidgetItem(QString("Página %1").arg(p->historico_acessos[i].pagina)));
+            
+            // Status
+            QTableWidgetItem *itemStatus = new QTableWidgetItem();
+            if (p->historico_acessos[i].falha) {
+                itemStatus->setText("PAGE FAULT");
+                itemStatus->setForeground(QBrush(QColor("#ff1744")));
+            } else {
+                itemStatus->setText("HIT");
+                itemStatus->setForeground(QBrush(QColor("#00e676")));
+            }
+            tabelaFilaRequisicoes->setItem(i, 2, itemStatus);
+        }
     }
 
 private:
@@ -237,6 +314,11 @@ private:
     QLabel             *rotuloMediaResposta   = nullptr;
     QLabel             *rotuloFalhasPagina    = nullptr;
     QTableWidget       *tabelaProcessos       = nullptr;
+    QGroupBox          *grupoFilaRequisicao   = nullptr;
+    QLabel             *rotuloInfoProcesso    = nullptr;
+    QLabel             *rotuloTotalAcessos    = nullptr;
+    QLabel             *rotuloFalhasMembro    = nullptr;
+    QTableWidget       *tabelaFilaRequisicoes = nullptr;
 
     /* Configura o layout e todos os componentes visuais da tela */
     void construirInterface() {
@@ -313,7 +395,9 @@ private:
         layoutMetricas->addWidget(rotuloFalhasPagina);
         layoutPrincipal->addWidget(grupoMetricas);
 
-        /* --- Grupo 4: Lista de Processos --- */
+        /* --- Grupo 4: Lista de Processos e Fila de Requisições de Memória --- */
+        QHBoxLayout *layoutSetorTabelas = new QHBoxLayout();
+        
         QGroupBox *grupoTabela = new QGroupBox("Detalhes dos Processos");
         QVBoxLayout *layoutTabela = new QVBoxLayout(grupoTabela);
         
@@ -324,13 +408,43 @@ private:
         });
         tabelaProcessos->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
         tabelaProcessos->setEditTriggers(QAbstractItemView::NoEditTriggers); /* Apenas leitura */
+        tabelaProcessos->setSelectionBehavior(QAbstractItemView::SelectRows);
+        tabelaProcessos->setSelectionMode(QAbstractItemView::SingleSelection);
         
         layoutTabela->addWidget(tabelaProcessos);
-        layoutPrincipal->addWidget(grupoTabela);
+        layoutSetorTabelas->addWidget(grupoTabela, 60); /* 60% da largura */
+        
+        /* Grupo de Fila de Requisição de Memória */
+        grupoFilaRequisicao = new QGroupBox("Fila de Requisições de Memória do Processo");
+        QVBoxLayout *layoutFila = new QVBoxLayout(grupoFilaRequisicao);
+        
+        rotuloInfoProcesso = new QLabel("Selecione um processo acima para ver os acessos.");
+        rotuloInfoProcesso->setStyleSheet("font-weight: bold; color: #00f0ff;");
+        layoutFila->addWidget(rotuloInfoProcesso);
+        
+        QHBoxLayout *layoutResumoFila = new QHBoxLayout();
+        rotuloTotalAcessos = new QLabel("Total Acessos: --");
+        rotuloFalhasMembro = new QLabel("Page Faults: --");
+        layoutResumoFila->addWidget(rotuloTotalAcessos);
+        layoutResumoFila->addWidget(rotuloFalhasMembro);
+        layoutFila->addLayout(layoutResumoFila);
+        
+        tabelaFilaRequisicoes = new QTableWidget(0, 3);
+        tabelaFilaRequisicoes->setHorizontalHeaderLabels({"Ordem", "Pág. Requisitada", "Status"});
+        tabelaFilaRequisicoes->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        tabelaFilaRequisicoes->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        
+        layoutFila->addWidget(tabelaFilaRequisicoes);
+        layoutSetorTabelas->addWidget(grupoFilaRequisicao, 40); /* 40% da largura */
+        
+        layoutPrincipal->addLayout(layoutSetorTabelas);
 
         /* --- Conexões de Eventos (Sinais e Slots) --- */
         connect(botaoCarregar, &QPushButton::clicked, this, &JanelaPrincipal::aoCarregarCSV);
         connect(botaoSimular,  &QPushButton::clicked, this, &JanelaPrincipal::aoSimular);
+        
+        /* Conexão para atualizar a fila de requisições ao selecionar um processo */
+        connect(tabelaProcessos, &QTableWidget::itemSelectionChanged, this, &JanelaPrincipal::aoSelecionarProcesso);
         
         /* Desabilita o campo de Quantum se o algoritmo escolhido não for Round-Robin */
         connect(comboEscalonador, QOverload<int>::of(&QComboBox::currentIndexChanged),

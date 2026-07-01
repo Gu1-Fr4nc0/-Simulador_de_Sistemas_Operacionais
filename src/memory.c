@@ -211,13 +211,26 @@ int carregar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
                               int id_processo, int memoria_necessaria_mb,
                               PoliticaSubstituicaoPagina politica, int tempo_atual,
                               Processo *todos_processos, int num_processos, int *referencias_futuras) {
-    (void)todos_processos;
-    (void)num_processos;
     (void)tempo_atual;
     
     tabela->id_processo        = id_processo;
     tabela->quantidade_paginas = 0;
     tabela->dica_vitima        = 0;
+
+    /* Encontra o processo correspondente no array para registrar os acessos */
+    Processo *processo_atual = NULL;
+    if (todos_processos != NULL) {
+        for (int p_idx = 0; p_idx < num_processos; p_idx++) {
+            if (todos_processos[p_idx].id_processo == id_processo) {
+                processo_atual = &todos_processos[p_idx];
+                break;
+            }
+        }
+    }
+    
+    if (processo_atual != NULL) {
+        processo_atual->quantidade_acessos = 0;
+    }
 
     /* Calcula quantas páginas no total este processo usará (1 MB = 1024 KB) */
     int paginas_necessarias = (memoria_necessaria_mb * 1024) / TAMANHO_PAGINA_KB;
@@ -262,6 +275,14 @@ int carregar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
                 pagina_carregada_antes[pagina] = 1;
             }
         }
+        
+        /* Grava no histórico do processo */
+        if (processo_atual != NULL && processo_atual->quantidade_acessos < MAX_HISTORICO_MEMORIA) {
+            int idx = processo_atual->quantidade_acessos;
+            processo_atual->historico_acessos[idx].pagina = pagina;
+            processo_atual->historico_acessos[idx].falha = falha;
+            processo_atual->quantidade_acessos++;
+        }
     }
 
     free(pagina_carregada_antes);
@@ -278,8 +299,9 @@ int carregar_processo_memoria(MemoriaFisica *memoria, TabelaPaginas *tabela,
                 falhas_de_pagina, paginas_necessarias);
     }
 
-    printf("[MEMORIA] Processo %d simulado: %d páginas necessárias, ocorreu(ram) %d Page Faults.\n",
-           id_processo, paginas_necessarias, falhas_de_pagina);
+    double pct_falhas = (tamanho_refs > 0) ? (100.0 * falhas_de_pagina / tamanho_refs) : 0.0;
+    printf("[MEMORIA] Processo %d simulado: %d páginas necessárias, ocorreu(ram) %d Page Faults (%.2f%%).\n",
+           id_processo, paginas_necessarias, falhas_de_pagina, pct_falhas);
     return falhas_de_pagina;
 }
 
