@@ -1,6 +1,7 @@
 # Simulador de Sistemas Operacionais
-**Disciplina:** Sistemas Operacionais — UTFPR  
-**Entrega:** 21/06 | **Apresentação:** 22 e 24/06
+**Disciplina:** Sistemas Operacionais — UTFPR
+
+Este projeto é um simulador integrado de Sistemas Operacionais contendo escalonamento de CPU (com suporte a Round-Robin, SRTF e Prioridade Preemptiva), gerenciamento de memória virtual paginada (com políticas de substituição FIFO, LRU e Ótima) e exibição dinâmica da fila de requisições de página por processo.
 
 ---
 
@@ -87,25 +88,3 @@ pid,nome,arrival_time,burst_time,priority,memory_mb
 | FIFO     | Remove a página mais antiga na memória                 |
 | LRU      | Remove a menos recentemente usada                      |
 | Ótimo    | Remove a que será usada mais tarde no futuro (offline) |
-
----
-
-## Distribuição de Pontos (conforme especificação)
-
-| Item                                        | Pontuação |
-|---------------------------------------------|-----------|
-| Interface Gráfica                           | 2.0       |
-| Algoritmos de Escalonamento (RR, SJF-P, PP) | 4.0       |
-| Memória Virtual e Substituição de Páginas   | 4.0       |
-| **Total**                                   | **10.0**  |
-
----
-
-## Onde Implementar o Restante
-
-Os arquivos já têm os esqueletos completos. O que falta é:
-
-- `scheduler.c` — os algoritmos já estão implementados; revise e teste.
-- `memory.c` — FIFO, LRU e Ótimo já implementados; teste com o CSV.
-- `mainwindow.cpp` — GUI funcional; adicione melhorias visuais se quiser.
-- **Testes** — use `make cli` + o CSV de exemplo para validar a lógica antes de integrar à GUI.
